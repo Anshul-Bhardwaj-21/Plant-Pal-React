@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Plant-Pal Design System - Green Nature Theme */
+
+@layer base {
+  :root {
+    --background: 120 20% 98%;
+    --foreground: 150 40% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 40% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 40% 10%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 120 20% 94%;
+    --secondary-foreground: 150 40% 20%;
+
+    --muted: 120 15% 94%;
+    --muted-foreground: 150 15% 40%;
+
+    --accent: 142 40% 90%;
+    --accent-foreground: 142 76% 25%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 142 20% 88%;
+    --input: 142 20% 88%;
+    --ring: 142 76% 36%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 120 20% 97%;
+    --sidebar-foreground: 150 40% 20%;
+    --sidebar-primary: 142 76% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 142 40% 92%;
+    --sidebar-accent-foreground: 142 76% 25%;
+    --sidebar-border: 142 20% 90%;
+    --sidebar-ring: 142 76% 36%;
+  }
+
+  .dark {
+    --background: 150 30% 8%;
+    --foreground: 120 20% 95%;
+
+    --card: 150 25% 12%;
+    --card-foreground: 120 20% 95%;
+
+    --popover: 150 25% 12%;
+    --popover-foreground: 120 20% 95%;
+
+    --primary: 142 70% 45%;
+    --primary-foreground: 150 30% 8%;
+
+    --secondary: 150 20% 18%;
+    --secondary-foreground: 120 20% 90%;
+
+    --muted: 150 20% 18%;
+    --muted-foreground: 120 15% 60%;
+
+    --accent: 142 30% 20%;
+    --accent-foreground: 142 70% 60%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 20% 20%;
+    --input: 150 20% 20%;
+    --ring: 142 70% 45%;
+
+    --sidebar-background: 150 25% 10%;
+    --sidebar-foreground: 120 20% 90%;
+    --sidebar-primary: 142 70% 45%;
+    --sidebar-primary-foreground: 150 30% 8%;
+    --sidebar-accent: 142 25% 18%;
+    --sidebar-accent-foreground: 142 70% 60%;
+    --sidebar-border: 150 20% 18%;
+    --sidebar-ring: 142 70% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-primary/30;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary/50;
+  }
+}
