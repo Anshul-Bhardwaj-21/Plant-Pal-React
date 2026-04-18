@@ -1,138 +1,208 @@
-# 🌱 PlantPal - AI-Powered Plant Care Assistant
+# PlantPal
 
-Production-ready plant care app with AI identification, disease detection, and **personalized care calculations**.
+An AI-powered plant care assistant built with React, TypeScript, and Google Gemini. Identify plants from photos, detect diseases, get personalized care schedules, and track your collection's health over time.
 
-## Tech Stack
-
-- **Frontend**: React + TypeScript + Vite
-- **UI**: Tailwind CSS + shadcn/ui
-- **Database**: Firebase (Firestore + Storage + Auth)
-- **AI**: Google Gemini (Vision + Chat)
-- **Weather**: OpenWeatherMap API
-- **Charts**: Recharts
-- **Camera**: Web Camera API
+---
 
 ## Features
 
-✅ **AI Plant Identification** - Gemini Vision API with top 3 predictions  
-✅ **Smart Watering Calculator** - Calculates exact ml based on pot size, soil, weather, plant height  
-✅ **Kitchen Waste Composting Guide** - What to add/avoid with preparation steps  
-✅ **Fertilizer Schedule** - Personalized NPK recommendations with timing  
-✅ **Multi-Image Age Estimation** - Analyze full plant, stem, leaves for accurate age  
-✅ **Auto Location & Weather** - Geolocation + 7-day forecast with 30min cache  
-✅ **Disease Detection** - TensorFlow.js + treatment recommendations  
-✅ **Smart Camera** - Proper permission handling, resize to 1024px, JPEG compression  
-✅ **Weather-Based Advice** - AI suggestions based on forecast  
-✅ **Health Dashboard** - Scores, graphs, care history  
-✅ **Gamification** - 7 badges for consistent care  
-✅ **AI Chatbot** - Context-aware with plant + weather data  
-✅ **Growth Timeline** - Track plant progress with photos  
-✅ **Smart Reminders** - Weather-aware watering alerts  
+- **AI Plant Identification** — Gemini Vision API with top-3 predictions and confidence scores
+- **Disease Detection** — TF.js model (trainable) with Gemini fallback; 15 disease classes
+- **Smart Watering Calculator** — Calculates exact ml based on pot size, soil type, weather, and plant height
+- **Fertilizer Scheduler** — Personalized NPK recommendations by plant type and age
+- **Kitchen Waste Composting Guide** — What to add, what to avoid, and why
+- **Multi-Image Age Estimation** — Upload full plant, stem, and leaf photos for AI age analysis
+- **Weather Integration** — Real-time conditions + 7-day forecast via OpenWeatherMap; 30-min cache
+- **Health Dashboard** — Scores, care history graphs, and activity tracking
+- **AI Chatbot** — Context-aware assistant with plant and weather data
+- **Gamification** — 7 achievement badges for consistent care
+- **Smart Reminders** — Weather-aware watering alerts
 
-## 🌟 Unique Features
+---
 
-### 1. Intelligent Watering Calculator
-Calculates precise watering amount considering:
-- Pot size (small to extra-large)
-- Soil type (clay, sandy, loamy, peat, chalky)
-- Plant height
-- Current weather (temperature, humidity, rain)
-- Plant type
-- Time of day recommendation
+## Tech Stack
 
-**Example Output**: "Water with 650ml every 5 days in the evening"
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite |
+| UI | Tailwind CSS, shadcn/ui, Radix UI |
+| Charts | Recharts |
+| AI / Vision | Google Gemini API (`@google/generative-ai`) |
+| ML (local) | TensorFlow.js (browser inference + Node training) |
+| Backend / DB | Firebase Firestore + Storage |
+| Weather | OpenWeatherMap API |
+| Testing | Vitest, Testing Library |
+| Mobile | React Native / Expo (`mobile/`) |
 
-### 2. Kitchen Waste Composting
-Complete guide with:
-- ✅ 8 recommended items (banana peels, eggshells, coffee grounds, etc.)
-- ❌ 6 items to avoid (meat, dairy, oily food, etc.)
-- 📋 7-step preparation guide
-- 💡 Benefits and usage instructions for each item
+---
 
-### 3. Multi-Image Age Estimation
-Upload 4 types of images:
-- Full plant view
-- Stem close-up
-- Leaves detail
-- Roots (optional)
+## Architecture
 
-AI analyzes all images for accurate age estimation with confidence score.
+```
+Browser
+  └── React SPA (Vite)
+        ├── src/pages/          Route-level components
+        ├── src/components/     Reusable UI components
+        ├── src/services/       API integrations (Gemini, Firebase, Weather)
+        ├── src/hooks/          Custom React hooks
+        ├── src/lib/            Firebase config, utilities
+        └── src/data/           Static plant database (15 species)
 
-### 4. Personalized Fertilizer Schedule
-- NPK ratio recommendations by plant type
-- Timing based on plant age
-- Amount calculations
-- Application instructions
-- Seasonal adjustments
+Disease Detection Pipeline
+  Training (offline):  scripts/train-model.js  →  public/models/plant-disease/
+  Inference (browser): diseaseDetectionService.ts loads model.json
+  Fallback:            Gemini Vision API (used until model is trained)
 
-## Quick Start
+Mobile
+  └── mobile/   Expo / React Native app (separate package)
 
-### 1. Install Dependencies
+Server
+  └── server/   Optional Gemini proxy (Node/Express)
+```
+
+---
+
+## Local Setup
+
+### Prerequisites
+
+- Node.js 18+
+- A Firebase project (Firestore + Storage enabled)
+- Google Gemini API key
+- OpenWeatherMap API key
+
+### 1. Clone and install
+
 ```bash
+git clone <repo-url>
+cd Plant-Pal-React
 npm install
 ```
 
-### 2. Environment Variables
+### 2. Configure environment variables
 
-Create `.env`:
-```env
-VITE_FIREBASE_API_KEY=your_firebase_key
-VITE_FIREBASE_AUTH_DOMAIN=your_domain
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-VITE_WEATHER_API_KEY=your_openweather_key
+```bash
+cp .env.example .env
 ```
 
+Edit `.env` and fill in your keys. See `.env.example` for all required variables.
+
+> Keys are read via `import.meta.env.VITE_*` at build time. Never commit `.env`.
+
 ### 3. Run
+
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:5173`
+Open [http://localhost:5173](http://localhost:5173).
 
-## How It Works
-
-### Watering Calculation Pipeline
-1. **Base Amount**: Determined by pot size (200ml - 2000ml)
-2. **Plant Type Adjustment**: Succulents 0.5x, Vegetables 1.3x, etc.
-3. **Soil Adjustment**: Clay retains water (0.8x), Sandy drains fast (1.3x)
-4. **Height Factor**: Larger plants need more water
-5. **Weather Integration**: Hot weather 1.3x, High humidity 0.8x
-6. **Time Recommendation**: Morning/evening based on temperature
-
-### Kitchen Waste Processing
-1. User selects plant type
-2. System provides customized waste recommendations
-3. Shows preparation steps
-4. Warns about items to avoid
-5. Explains benefits of each ingredient
-
-### Age Estimation Process
-1. User uploads multiple plant images
-2. AI analyzes foliage density, stem thickness, leaf maturity
-3. Combines indicators from all images
-4. Calculates age with confidence score
-5. Provides detailed reasoning
-
-## API Keys
-
-### OpenWeatherMap
-Get key: https://openweathermap.org/api
-
-### Firebase
-1. Create project: https://console.firebase.google.com/
-2. Enable Firestore, Storage, Auth
-3. Copy config to `.env`
-
-## Build
+### 4. Build
 
 ```bash
 npm run build
 ```
 
-Output in `dist/` folder.
+Output goes to `dist/`.
+
+---
+
+## Available Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build |
+| `npm run lint` | Run ESLint |
+| `npm test` | Run unit tests (Vitest) |
+| `npm run dataset:sample` | Generate synthetic training images |
+| `npm run train` | Train the disease detection model |
+
+---
+
+## Disease Model Training
+
+The disease detection model is trainable on your own dataset. A sample dataset generator is included for testing the pipeline.
+
+```bash
+# 1. Install training dependencies (one time)
+npm install jimp --save-dev
+
+# 2. (Optional) Generate synthetic sample data to test the pipeline
+npm run dataset:sample
+
+# 3. Train
+npm run train
+```
+
+**To use real data**, replace the contents of `training-data/<ClassName>/` with actual plant disease images. Folder names must match the class labels in `public/models/plant-disease/classes.json`.
+
+The trained model is saved to `public/models/plant-disease/` and loaded automatically by the app on next run.
+
+> Recommended dataset: [PlantVillage](https://github.com/spMohanty/PlantVillage-Dataset) (50k+ labeled images, 38 classes).
+
+---
+
+## Project Structure
+
+```
+Plant-Pal-React/
+├── public/
+│   └── models/plant-disease/   Trained TF.js model (auto-generated)
+├── scripts/
+│   ├── train-model.js          Model training script (Node)
+│   └── generate-sample-dataset.js
+├── server/                     Optional Gemini proxy server
+├── mobile/                     Expo React Native app
+├── src/
+│   ├── components/             UI components
+│   ├── data/                   Static plant database
+│   ├── hooks/                  Custom hooks
+│   ├── lib/                    Firebase, utilities
+│   ├── pages/                  Route pages
+│   ├── services/               External API services
+│   ├── test/                   Test setup
+│   └── types/                  TypeScript types
+├── training-data/              Local training images (gitignored)
+├── .env.example                Environment variable template
+└── README.md
+```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_GEMINI_API_KEY` | Yes | Google Gemini API key |
+| `VITE_FIREBASE_API_KEY` | Yes | Firebase web API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Yes | Firebase auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | Yes | Firebase project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Yes | Firebase storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Yes | Firebase sender ID |
+| `VITE_FIREBASE_APP_ID` | Yes | Firebase app ID |
+| `VITE_WEATHER_API_KEY` | Yes | OpenWeatherMap API key |
+
+All variables are prefixed `VITE_` and exposed to the browser bundle. Do not store server-only secrets here.
+
+---
+
+## Screenshots
+
+> Screenshots coming soon. Run the app locally to see the full UI.
+
+---
+
+## Roadmap
+
+- [ ] Replace sample training data with real PlantVillage dataset
+- [ ] Firebase Authentication (user accounts)
+- [ ] Growth timeline with photo history
+- [ ] Push notifications for watering reminders
+- [ ] Offline support (PWA)
+- [ ] Mobile app feature parity with web
+
+---
 
 ## License
 

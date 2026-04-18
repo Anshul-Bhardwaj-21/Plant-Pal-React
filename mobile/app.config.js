@@ -1,0 +1,85 @@
+import 'dotenv/config';
+
+export default {
+  expo: {
+    name: 'PlantPal',
+    slug: 'plantpal',
+    version: '1.0.0',
+    orientation: 'portrait',
+    icon: './assets/icon.png',
+    userInterfaceStyle: 'dark',
+    newArchEnabled: true,
+    scheme: 'plantpal',
+    splash: {
+      image: './assets/splash-icon.png',
+      resizeMode: 'contain',
+      backgroundColor: '#1a1a1a',
+    },
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: 'com.plantpal.app',
+      infoPlist: {
+        NSCameraUsageDescription:
+          'PlantPal needs camera access to identify plants and detect diseases from photos.',
+        NSPhotoLibraryUsageDescription:
+          'PlantPal needs photo library access to select plant images for identification.',
+        NSLocationWhenInUseUsageDescription:
+          'PlantPal needs your location to provide accurate weather information for your plants.',
+      },
+    },
+    android: {
+      package: 'com.plantpal.app',
+      adaptiveIcon: {
+        foregroundImage: './assets/adaptive-icon.png',
+        backgroundColor: '#1a1a1a',
+      },
+      permissions: [
+        'CAMERA',
+        'READ_EXTERNAL_STORAGE',
+        'WRITE_EXTERNAL_STORAGE',
+        'ACCESS_FINE_LOCATION',
+        'ACCESS_COARSE_LOCATION',
+      ],
+      edgeToEdgeEnabled: true,
+      predictiveBackGestureEnabled: false,
+    },
+    web: {
+      favicon: './assets/favicon.png',
+    },
+    plugins: [
+      'expo-router',
+      [
+        'expo-camera',
+        {
+          cameraPermission:
+            'PlantPal needs camera access to identify plants and detect diseases from photos.',
+        },
+      ],
+      [
+        'expo-location',
+        {
+          locationAlwaysAndWhenInUseUsageDescription:
+            'PlantPal needs your location to provide accurate weather information for your plants.',
+        },
+      ],
+      [
+        'expo-image-picker',
+        {
+          photosPermission:
+            'PlantPal needs photo library access to select plant images for identification.',
+        },
+      ],
+    ],
+    extra: {
+      router: {
+        origin: false,
+      },
+      eas: {
+        projectId: 'your-project-id',
+      },
+      geminiApiKey: process.env.GEMINI_API_KEY,
+      weatherApiKey: process.env.WEATHER_API_KEY,
+      firebaseApiKey: process.env.FIREBASE_API_KEY,
+    },
+  },
+};

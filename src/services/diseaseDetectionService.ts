@@ -1,146 +1,131 @@
+/**
+ * Disease Detection Service
+ *
+ * Priority:
+ *  1. Custom trained model  → public/models/plant-disease/model.json
+ *  2. Gemini Vision API     → fallback until model is trained
+ *
+ * Train the model:
+ *   node scripts/generate-sample-dataset.js   (sample data)
+ *   node scripts/train-model.js               (train)
+ */
+
 import * as tf from '@tensorflow/tfjs';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const MODEL_URL = 'https://tfhub.dev/google/tfjs-model/imagenet/mobilenet_v2_100_224/classification/3/default/1';
+// Must match IMAGE_SIZE in scripts/train-model.js
+const MODEL_INPUT_SIZE = 32;
 
-let model: tf.GraphModel | null = null;
+const HEAD_MODEL_PATH = '/models/plant-disease/model.json';
+const CLASSES_PATH    = '/models/plant-disease/classes.json';
 
-const PLANT_DISEASES = [
-  'Healthy',
-  'Bacterial Leaf Spot',
-  'Early Blight',
-  'Late Blight',
-  'Leaf Mold',
-  'Septoria Leaf Spot',
-  'Spider Mites',
-  'Target Spot',
-  'Yellow Leaf Curl Virus',
-  'Mosaic Virus',
-  'Powdery Mildew',
-  'Rust',
-  'Anthracnose',
-  'Black Spot',
-  'Root Rot',
+const DEFAULT_CLASSES = [
+  'Healthy', 'Bacterial_Leaf_Spot', 'Early_Blight', 'Late_Blight',
+  'Leaf_Mold', 'Septoria_Leaf_Spot', 'Spider_Mites', 'Target_Spot',
+  'Yellow_Leaf_Curl_Virus', 'Mosaic_Virus', 'Powdery_Mildew',
+  'Rust', 'Anthracnose', 'Black_Spot', 'Root_Rot',
 ];
 
-export const loadModel = async (): Promise<void> => {
+const toDisplay = (cls: string) => cls.replace(/_/g, ' ');
+
+let trainedModel: tf.LayersModel | null = null;
+let classLabels: string[] = DEFAULT_CLASSES;
+let loadAttempted = false;
+
+export const loadModel = async (): Promise<boolean> => {
+  if (loadAttempted) return trainedModel !== null;
+  loadAttempted = true;
   try {
-    if (!model) {
-      model = await tf.loadGraphModel(MODEL_URL, { fromTFHub: true });
-    }
-  } catch (error) {
-    console.error('Model loading error:', error);
+    trainedModel = await tf.loadLayersModel(HEAD_MODEL_PATH);
+    try {
+      const res = await fetch(CLASSES_PATH);
+      if (res.ok) classLabels = await res.json();
+    } catch { /* keep defaults */ }
+    console.log('[PlantPal] Custom disease model loaded');
+    return true;
+  } catch {
+    console.log('[PlantPal] No trained model — using Gemini fallback');
+    return false;
   }
 };
 
-export const detectDisease = async (imageElement: HTMLImageElement): Promise<{ disease: string; confidence: number; recommendations: string[] }> => {
-  try {
-    if (!model) {
-      await loadModel();
-    }
-
-    const tensor = tf.browser
-      .fromPixels(imageElement)
-      .resizeNearestNeighbor([224, 224])
+const toTensor = (img: HTMLImageElement): tf.Tensor2D =>
+  tf.tidy(() =>
+    tf.browser
+      .fromPixels(img)
+      .resizeBilinear([MODEL_INPUT_SIZE, MODEL_INPUT_SIZE])
       .toFloat()
       .div(255.0)
-      .expandDims(0);
+      .reshape([1, MODEL_INPUT_SIZE * MODEL_INPUT_SIZE * 3]) as tf.Tensor2D
+  );
 
-    const predictions = await model!.predict(tensor) as tf.Tensor;
-    const probabilities = await predictions.data();
-    
-    tensor.dispose();
-    predictions.dispose();
+const detectWithModel = async (img: HTMLImageElement) => {
+  const input  = toTensor(img);
+  const logits = trainedModel!.predict(input) as tf.Tensor;
+  const probs  = await logits.data();
+  input.dispose();
+  logits.dispose();
 
-    const maxProb = Math.max(...Array.from(probabilities));
-    const maxIndex = Array.from(probabilities).indexOf(maxProb);
-    
-    const disease = maxIndex < PLANT_DISEASES.length ? PLANT_DISEASES[maxIndex] : 'Unknown';
-    const confidence = maxProb * 100;
+  const maxProb = Math.max(...Array.from(probs));
+  const maxIdx  = Array.from(probs).indexOf(maxProb);
+  return { disease: toDisplay(classLabels[maxIdx] ?? 'Healthy'), confidence: Math.min(maxProb * 100, 100) };
+};
 
-    const recommendations = getRecommendations(disease);
+const detectWithGemini = async (img: HTMLImageElement) => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error('Gemini API key not configured');
 
-    return {
-      disease,
-      confidence: Math.min(confidence, 100),
-      recommendations,
-    };
-  } catch (error) {
-    console.error('Disease detection error:', error);
-    
-    const randomIndex = Math.floor(Math.random() * PLANT_DISEASES.length);
-    const disease = PLANT_DISEASES[randomIndex];
-    const confidence = 60 + Math.random() * 30;
-    
-    return {
-      disease,
-      confidence,
-      recommendations: getRecommendations(disease),
-    };
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 512;
+  canvas.getContext('2d')?.drawImage(img, 0, 0, 512, 512);
+  const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+  const labels = DEFAULT_CLASSES.map(toDisplay).join(', ');
+  const prompt = `You are a plant pathologist. Identify any disease in this plant image.\nReply ONLY with valid JSON (no markdown):\n{"disease":"<one of: ${labels}>","confidence":<integer 0-100>}`;
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const result = await model.generateContent([prompt, { inlineData: { mimeType: 'image/jpeg', data: base64 } }]);
+  const match = result.response.text().match(/\{[\s\S]*?\}/);
+  if (!match) throw new Error('Could not parse Gemini response');
+  const parsed = JSON.parse(match[0]);
+  return { disease: parsed.disease ?? 'Unknown', confidence: parsed.confidence ?? 50 };
+};
+
+export type DetectionResult = {
+  disease: string;
+  confidence: number;
+  recommendations: string[];
+  source: 'model' | 'gemini' | 'unavailable';
+};
+
+export const detectDisease = async (imageElement: HTMLImageElement): Promise<DetectionResult> => {
+  const modelReady = await loadModel();
+  if (modelReady) {
+    try {
+      const r = await detectWithModel(imageElement);
+      return { ...r, recommendations: getRecommendations(r.disease), source: 'model' };
+    } catch (err) { console.error('[PlantPal] Model inference error:', err); }
   }
+  try {
+    const r = await detectWithGemini(imageElement);
+    return { ...r, recommendations: getRecommendations(r.disease), source: 'gemini' };
+  } catch (err) { console.error('[PlantPal] Gemini fallback error:', err); }
+
+  return { disease: 'Unable to detect', confidence: 0, recommendations: ['Configure API key or train the model.'], source: 'unavailable' };
 };
 
 const getRecommendations = (disease: string): string[] => {
-  const recommendationsMap: Record<string, string[]> = {
-    'Healthy': [
-      'Continue regular watering schedule',
-      'Maintain current light conditions',
-      'Monitor for any changes in appearance',
-    ],
-    'Bacterial Leaf Spot': [
-      'Remove affected leaves immediately',
-      'Avoid overhead watering',
-      'Apply copper-based fungicide',
-      'Improve air circulation',
-    ],
-    'Early Blight': [
-      'Remove infected leaves',
-      'Apply fungicide treatment',
-      'Mulch around base to prevent soil splash',
-      'Water at soil level only',
-    ],
-    'Late Blight': [
-      'Remove and destroy infected plants',
-      'Apply fungicide preventatively',
-      'Ensure good air circulation',
-      'Avoid watering in evening',
-    ],
-    'Leaf Mold': [
-      'Reduce humidity levels',
-      'Improve ventilation',
-      'Remove affected leaves',
-      'Apply appropriate fungicide',
-    ],
-    'Septoria Leaf Spot': [
-      'Remove infected leaves',
-      'Mulch to prevent soil splash',
-      'Apply fungicide treatment',
-      'Rotate crops annually',
-    ],
-    'Spider Mites': [
-      'Spray with water to dislodge mites',
-      'Apply insecticidal soap',
-      'Increase humidity around plant',
-      'Remove heavily infested leaves',
-    ],
-    'Powdery Mildew': [
-      'Improve air circulation',
-      'Reduce humidity',
-      'Apply sulfur or neem oil',
-      'Remove infected parts',
-    ],
-    'Rust': [
-      'Remove infected leaves',
-      'Apply fungicide',
-      'Avoid overhead watering',
-      'Ensure proper spacing',
-    ],
-    'Unknown': [
-      'Monitor plant closely',
-      'Isolate from other plants',
-      'Consult with plant expert',
-      'Take clear photos for identification',
-    ],
+  const map: Record<string, string[]> = {
+    'Healthy':             ['Continue regular watering', 'Maintain current light conditions', 'Monitor for changes'],
+    'Bacterial Leaf Spot': ['Remove affected leaves', 'Avoid overhead watering', 'Apply copper-based fungicide'],
+    'Early Blight':        ['Remove infected leaves', 'Apply fungicide', 'Mulch around base'],
+    'Late Blight':         ['Remove infected plants', 'Apply fungicide preventatively', 'Ensure air circulation'],
+    'Leaf Mold':           ['Reduce humidity', 'Improve ventilation', 'Remove affected leaves'],
+    'Septoria Leaf Spot':  ['Remove infected leaves', 'Mulch to prevent soil splash', 'Apply fungicide'],
+    'Spider Mites':        ['Spray with water', 'Apply insecticidal soap', 'Increase humidity'],
+    'Powdery Mildew':      ['Improve air circulation', 'Reduce humidity', 'Apply sulfur or neem oil'],
+    'Rust':                ['Remove infected leaves', 'Apply fungicide', 'Avoid overhead watering'],
   };
-
-  return recommendationsMap[disease] || recommendationsMap['Unknown'];
+  return map[disease] ?? ['Monitor plant closely', 'Isolate from other plants', 'Consult a plant expert'];
 };
