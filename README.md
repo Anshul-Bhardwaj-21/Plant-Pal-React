@@ -76,7 +76,6 @@ npm install
 
 Create `.env`:
 ```env
-VITE_GEMINI_API_KEY=your_gemini_api_key
 VITE_FIREBASE_API_KEY=your_firebase_key
 VITE_FIREBASE_AUTH_DOMAIN=your_domain
 VITE_FIREBASE_PROJECT_ID=your_project_id
@@ -118,9 +117,6 @@ Open `http://localhost:5173`
 5. Provides detailed reasoning
 
 ## API Keys
-
-### Gemini API
-Get key: https://makersuite.google.com/app/apikey
 
 ### OpenWeatherMap
 Get key: https://openweathermap.org/api
